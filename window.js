@@ -21,7 +21,9 @@ class Window {
 		if (this.scrollbar) {
 			for (var i=0; i<this.height; i++) {
 				this.t.locate(this.width-1, this.above+i);
-				this.t.write(this.t.color(this.style[this.className].scrollbg)+(this.scrollbarChar(i)?"#":" "));
+				var n = this.scrollbarChar(i);
+				var color = this.style[this.className][n?"scrollfg":"scrollbg"]
+				this.t.write(this.t.color(color)+" ");
 			}
 		}
 	}
@@ -86,7 +88,9 @@ class Window {
 		if (this.scrollbar) {
 			for (var i=start; i<= end; i++) {
 				this.t.locate(this.width-1, i);
-				this.t.write(this.t.color(this.style[this.className].scrollbg)+(this.scrollbarChar(i)?"#":" "));
+				var n = this.scrollbarChar(i);
+				var color = this.style[this.className][n?"scrollfg":"scrollbg"]
+				this.t.write(this.t.color(color)+" ");
 			}
 		}
 	}
@@ -257,7 +261,8 @@ var style = {
 	},
 	main: {
 		bgcolor: 0xFF2050,
-		scrollbg: 96,
+		scrollbg: 0xABCDEF,
+		scrollfg: 0xFFEEFF,
 		// scrollBg - scrollbar bg color
 		// scrollFg - scrollbar fg color
 		// scrollBottomBg - scrollbar colors when bar is at bottom (option)
@@ -265,7 +270,8 @@ var style = {
 	},
 	main2: {
 		bgcolor: 0xFF98E0,
-		scrollbg: 96,
+		scrollbg: 0xABCDEF,
+		scrollfg: 0xFFEEFF,
 	}
 }
 // need a function to get a style field
@@ -281,6 +287,7 @@ var s2 = stack.createWindow(0,20,'main2',true,true);
 s.hide();
 s2.show();
 var i = 0;
+term.showCursor(true);
 term.on("key",(key)=>{
 	if (key=="i") {
 		s2.setScroll(s2.scroll-1);
@@ -288,6 +295,13 @@ term.on("key",(key)=>{
 	if (key=="k") {
 		s2.setScroll(s2.scroll+1);
 	}
+	if (key=="w") {
+		term.setCursorPos(term.csrx, term.csry-1);
+	}
+	if (key=="s") {
+		term.setCursorPos(term.csrx, term.csry+1);
+	}
+
 })
 
 function add(){

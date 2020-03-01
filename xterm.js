@@ -1,3 +1,4 @@
+
 // interface level 0
 // (write, ioctl, etc.)
 
@@ -141,32 +142,37 @@ class XTerm extends EventEmitter {
 	// so we want to give the illusion that the cursor can be controlled independantly of drawing
 	// there will be public methods for show/hide/locate
 	// so in "drawing mode", the cursor needs to be hidden, and then restored to the true position after
-	
-	endDraw() {
-		if (this.cursorEnabled) {
-			if (this.cursorVisible != true) {
-				this.loadCursor();
-				this.write("\x1B8\x1B[?25h");
-				this.cursorVisible = true;
-				this.locate(this.csrx, this.csry);
-			}
-		}
-		this.drawing = false;
-	}
 
-	saveCursor() { this.write("\x1B7"); }
-	loadCursor() { this.write("\x1B8"); }
-	
 	startDraw() {
-		this.write("\x1B7");
 		if (this.cursorVisible != false) {
 			this.write("\x1B[?25l");
 			this.cursorVisible = false;
 		}
-		this.drawing = true;
+		this.write("\x1B7"); //save cursor pos
 	}
 
-	//
+	// it is assumed that this will be called after startDraw
+	endDraw() {
+		if (this.cursorEnabled) {
+			this.write("\x1B[?25h");
+			this.cursorVisible = true;
+		}
+		this.write("\x1B8"); //load cursor pos
+	}
+	
+	// todo: make these work while in drawing mode ?
+	showCursor(show) {
+		if (typeof show != "boolean")
+			throw "showCursor expects a boolean";
+		if (this.cursorVisible != show) {
+			if (show)
+				this.write("\x1B[?25h");
+			else
+				this.write("\x1B[?25l");
+			this.cursorVisible = show;
+		}
+		this.cursorEnabled = show;
+	}
 	setCursorPos(x, y) {
 		this.csrx = x;
 		this.csry = y;
