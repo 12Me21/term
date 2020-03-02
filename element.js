@@ -77,9 +77,9 @@ var element = {tag: "main", contents:[
 		tag: "time", contents: "10:30 pm"
 	}},
 	{tag: "message", block: true, contents: [
-		"the",
+		"the ",
 		{tag: "bold", contents: "sand"},
-		"can be eaten"
+		" can be eaten ツツツツツツツツツツツツツツツ"
 	]},
 ]}
 
@@ -91,7 +91,10 @@ var element = {tag: "main", contents:[
 // - normal text
 // - end
 
-console.log(wrap(processElement(element, styles, []), 10));
+var charWidth = require('./unicode.js').charWidth;
+
+console.log(".".repeat(25));
+console.log(wrap(processElement(element, styles, []), 25).join('\n'));
 
 function wrap(iter, width) {
 	var blockStyle = {};
@@ -100,6 +103,7 @@ function wrap(iter, width) {
 		for (var [str, style] of iter) {
 			if (str === true) {
 				blockStyle = style;
+				yield '\n';
 			} else {
 				
 				for (var chr of str) {
@@ -108,12 +112,13 @@ function wrap(iter, width) {
 			}
 		}
 	}
+	// text wrapper written by 12Me21 12/28/2019
 	var lineBuffer = "";
 	var lineWidth = 0; //init?
 	var breakSpot = -1;
 	var breakWidth = 0; //init?
 	var lines = [];
-
+	
 	for (var chr of next()) {
 		var preWidth = lineWidth;
 		if (chr == '\n') {
@@ -128,7 +133,7 @@ function wrap(iter, width) {
 			breakSpot = lineBuffer.length;
 			breakWidth = lineWidth;
 		}
-		if (chr == '\n' || lineWidth > width + 1) {
+		if (chr == '\n' || lineWidth > width) {
 			if (breakSpot < 0) {
 				breakSpot = lineBuffer.length - 1;
 				breakWidth = preWidth;
@@ -144,16 +149,10 @@ function wrap(iter, width) {
 		pushLine(lineBuffer);
 	}
 	
-	
 	function pushLine(line) {
 		lines.push(line);
 	}
-	return lines
-}
-
-function charWidth(chr) {
-	return 1;
+	return lines;
 }
 
 
-----------|
