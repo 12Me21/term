@@ -56,16 +56,19 @@ function* processElement(element, stylesheet, stack) {
 
 var styles = new Stylesheet({
 	main: {
-		bgcolor: "white",
-		color: "black",
+		bgcolor: 0xFFFFFF,
+		color: 0,
 	},
 	bold: {
 		bold: true,
 	},
 	username: function(element) {
 		return {
-			color: element.user.uid % 256,
+			color: element.user.uid % 256 * 99999,
 		};
+	},
+	message: {
+		margin: 3,
 	}
 });
 
@@ -79,7 +82,7 @@ var element = {tag: "main", contents:[
 	{tag: "message", block: true, contents: [
 		"the ",
 		{tag: "bold", contents: "sand"},
-		" can be eaten ツツツツツツツツツツツツツツツ"
+		" can be eaten ツツツツツツツツツツツツツツツxxxxxxxxxxxxxp̼̐͟q"
 	]},
 ]}
 
@@ -97,49 +100,55 @@ console.log(".".repeat(25));
 console.log(wrap(processElement(element, styles, []), 25).join('\n'));
 
 function wrap(iter, width) {
-	var blockStyle = {};
+	var blockStyle = {}; //line bg color, margin
+	// need a way to specify default blockstyle OR get it from somewhere
+	// maybe have the iterator start a block immediately?
+	var margin = ""
 	var currStyle = {};
 	function* next() {
 		for (var [str, style] of iter) {
 			if (str === true) {
 				blockStyle = style;
-				yield '\n';
+				margin = Array(blockStyle.margin || 0).fill(" ");
+				yield ['\n', {}]; // yeah what is that style hhhh
+				// todo: just yielding \n is not ideal here, and will break if the block starts at the beginning of the message
 			} else {
-				
 				for (var chr of str) {
-					yield chr;
+					yield [chr, style];
 				}
 			}
 		}
 	}
-	// text wrapper written by 12Me21 12/28/2019
-	var lineBuffer = "";
+	// text wrapper written by 12Me21 from ~12/28/2019
+	var lineBuffer = [];
 	var lineWidth = 0; //init?
 	var breakSpot = -1;
 	var breakWidth = 0; //init?
 	var lines = [];
 	
-	for (var chr of next()) {
+	for (var [chr, style] of next()) {
 		var preWidth = lineWidth;
 		if (chr == '\n') {
 			breakSpot = lineBuffer.length;
 			breakWidth = lineWidth;
 		} else {
 			lineWidth += charWidth(chr);
-			lineBuffer += chr;
+			lineBuffer.push(makeStyle(style) + chr);
 		}
 		
 		if (chr == ' ') {
 			breakSpot = lineBuffer.length;
 			breakWidth = lineWidth;
 		}
-		if (chr == '\n' || lineWidth > width) {
+		if (chr == '\n' || lineWidth > width - margin.length) {
+			
 			if (breakSpot < 0) {
 				breakSpot = lineBuffer.length - 1;
 				breakWidth = preWidth;
 			}
-			pushLine(lineBuffer.substr(0, breakSpot));
-			lineBuffer = lineBuffer.substr(breakSpot);
+			// if chr was \n, breakspot will be the end of the linebuffer
+			pushLine(lineBuffer.slice(0, breakSpot));
+			lineBuffer = margin.concat(lineBuffer.slice(breakSpot));
 			breakSpot = -1;
 			lineWidth = lineWidth - breakWidth;
 			breakWidth = 0;
@@ -150,9 +159,18 @@ function wrap(iter, width) {
 	}
 	
 	function pushLine(line) {
-		lines.push(line);
+		lines.push(line.join(""));
 	}
 	return lines;
 }
 
-
+function makeStyle(style) {
+	var s = "\x1B[m"
+	if (style.bold)
+		s += "\x1B[1m";
+	if (style.color)
+		s += `\x1B[38;2;${style.color>>16 & 255};${style.color>>8 & 255};${style.color & 255}m`;
+	if (style.bgcolor)
+		s += `\x1B[48;2;${style.bgcolor>>16 & 255};${style.bgcolor>>8 & 255};${style.bgcolor & 255}m`;
+	return s;
+}
