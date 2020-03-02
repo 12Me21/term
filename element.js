@@ -36,26 +36,21 @@ module.exports = Stylesheet;
 
 // when called for the first time, stack should contain
 // the default styles (from the window)
-function processElement(element, stylesheet, callback, stack) {
+function* processElement(element, stylesheet, stack) {
 	if (typeof element == 'string')
-		callback(element, stylesheet.lookup({}, stack));
+		yield [element, stylesheet.lookup({}, stack)];
 	else
 		var styles = stylesheet.lookup(element, stack);
 	
 	if (typeof element.contents == 'string') {
-		callback(element.contents, styles);
-	} else if (element.contents instanceof Array) { //
-		if (element.block) {
-			callback(true, styles);
-		}
+		yield [element.contents, styles];
+	} else if (element.contents instanceof Array) {
+		if (element.block)
+			yield [true, styles];
 		stack.push(styles);
-		element.contents.forEach((element)=>{
-			processElement(element, stylesheet, callback, stack);
-		});
+		for (var x of element.contents)
+			yield* processElement(x, stylesheet, stack);
 		stack.pop();
-		if (element.block) {
-			callback(false, styles);
-		}
 	}
 }
 
@@ -96,4 +91,69 @@ var element = {tag: "main", contents:[
 // - normal text
 // - end
 
-processElement(element, styles, console.log, []);
+console.log(wrap(processElement(element, styles, []), 10));
+
+function wrap(iter, width) {
+	var blockStyle = {};
+	var currStyle = {};
+	function* next() {
+		for (var [str, style] of iter) {
+			if (str === true) {
+				blockStyle = style;
+			} else {
+				
+				for (var chr of str) {
+					yield chr;
+				}
+			}
+		}
+	}
+	var lineBuffer = "";
+	var lineWidth = 0; //init?
+	var breakSpot = -1;
+	var breakWidth = 0; //init?
+	var lines = [];
+
+	for (var chr of next()) {
+		var preWidth = lineWidth;
+		if (chr == '\n') {
+			breakSpot = lineBuffer.length;
+			breakWidth = lineWidth;
+		} else {
+			lineWidth += charWidth(chr);
+			lineBuffer += chr;
+		}
+		
+		if (chr == ' ') {
+			breakSpot = lineBuffer.length;
+			breakWidth = lineWidth;
+		}
+		if (chr == '\n' || lineWidth > width + 1) {
+			if (breakSpot < 0) {
+				breakSpot = lineBuffer.length - 1;
+				breakWidth = preWidth;
+			}
+			pushLine(lineBuffer.substr(0, breakSpot));
+			lineBuffer = lineBuffer.substr(breakSpot);
+			breakSpot = -1;
+			lineWidth = lineWidth - breakWidth;
+			breakWidth = 0;
+		}
+	}
+	if (lineBuffer.length) {
+		pushLine(lineBuffer);
+	}
+	
+	
+	function pushLine(line) {
+		lines.push(line);
+	}
+	return lines
+}
+
+function charWidth(chr) {
+	return 1;
+}
+
+
+----------|
