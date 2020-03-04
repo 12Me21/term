@@ -61,6 +61,7 @@ var styles = new Stylesheet({
 	},
 	bold: {
 		bold: true,
+		bgcolor: 0x108020,
 	},
 	username: function(element) {
 		return {
@@ -68,7 +69,8 @@ var styles = new Stylesheet({
 		};
 	},
 	message: {
-		margin: 3,
+		margin: 7,
+		bgcolor: 0x77FF99,
 	}
 });
 
@@ -82,7 +84,7 @@ var element = {tag: "main", contents:[
 	{tag: "message", block: true, contents: [
 		"the ",
 		{tag: "bold", contents: "sand"},
-		" can be eaten ツツツツツツツツツツツツツツツxxxxxxxxxxxxxp̼̐͟q"
+		" can be eaten -ツツツツツツツツツツツツツツツxxxp̼̐q"
 	]},
 ]}
 
@@ -110,7 +112,7 @@ function wrap(iter, width) {
 			if (str === true) {
 				blockStyle = style;
 				margin = Array(blockStyle.margin || 0).fill(" ");
-				yield ['\n', {}]; // yeah what is that style hhhh
+				yield ['', {}]; // yeah what is that style hhhh
 				// todo: just yielding \n is not ideal here, and will break if the block starts at the beginning of the message
 			} else {
 				for (var chr of str) {
@@ -128,9 +130,16 @@ function wrap(iter, width) {
 	
 	for (var [chr, style] of next()) {
 		var preWidth = lineWidth;
-		if (chr == '\n') {
-			breakSpot = lineBuffer.length;
+		if (chr == '') {
+			pushLine(lineBuffer);
+			lineBuffer = margin.concat();
+			breakSpot = -1;
+			lineWidth = lineWidth - breakWidth;
+			breakWidth = 0;
+		} else if (chr == '\n') {
+			breakSpot = lineBuffer.length + 1;
 			breakWidth = lineWidth;
+			
 		} else {
 			lineWidth += charWidth(chr);
 			lineBuffer.push(makeStyle(style) + chr);
@@ -147,7 +156,7 @@ function wrap(iter, width) {
 				breakWidth = preWidth;
 			}
 			// if chr was \n, breakspot will be the end of the linebuffer
-			pushLine(lineBuffer.slice(0, breakSpot));
+			pushLine(lineBuffer.slice(0, breakSpot).concat(makeStyle(blockStyle)+"\x1B[K"));
 			lineBuffer = margin.concat(lineBuffer.slice(breakSpot));
 			breakSpot = -1;
 			lineWidth = lineWidth - breakWidth;
@@ -155,7 +164,7 @@ function wrap(iter, width) {
 		}
 	}
 	if (lineBuffer.length) {
-		pushLine(lineBuffer);
+		pushLine(lineBuffer.concat(makeStyle(blockStyle)+"\x1B[K"));
 	}
 	
 	function pushLine(line) {
