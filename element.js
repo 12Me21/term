@@ -101,7 +101,7 @@ var charWidth = require('./unicode.js').charWidth;
 console.log(".".repeat(25));
 console.log(wrap(processElement(element, styles, []), 25).join('\n'));
 
-function wrap(iter, width) {
+function wrap(iter, width, noCombining) {
 	var blockStyle = {}; //line bg color, margin
 	// need a way to specify default blockstyle OR get it from somewhere
 	// maybe have the iterator start a block immediately?
@@ -112,7 +112,7 @@ function wrap(iter, width) {
 			if (str === true) {
 				blockStyle = style;
 				margin = Array(blockStyle.margin || 0).fill(" ");
-				yield ['', {}]; // yeah what is that style hhhh
+				yield ['\n', {}]; // yeah what is that style hhhh
 				// todo: just yielding \n is not ideal here, and will break if the block starts at the beginning of the message
 			} else {
 				for (var chr of str) {
