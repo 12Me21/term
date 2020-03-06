@@ -38,15 +38,16 @@ module.exports = Stylesheet;
 // the default styles (from the window)
 function* processElement(element, stylesheet, stack) {
 	if (typeof element == 'string')
-		yield [element, stylesheet.lookup({}, stack)];
+		yield [element, stylesheet.lookup({}, stack), null];
 	else
 		var styles = stylesheet.lookup(element, stack);
 	
 	if (typeof element.contents == 'string') {
-		yield [element.contents, styles];
+		yield [element.contents, styles, null];
 	} else if (element.contents instanceof Array) {
-		if (element.block)
-			yield [true, styles];
+		if (element.block) {
+			yield [true, styles, element];
+		}
 		stack.push(styles);
 		for (var x of element.contents)
 			yield* processElement(x, stylesheet, stack);
@@ -75,7 +76,7 @@ var styles = new Stylesheet({
 });
 
 var element = {tag: "main", contents:[
-	{tag: "sender", contents: [
+	{tag: "sender", block:true, contents: [
 		{tag: "username", user: {uid:286}, contents: "Multi-Color Graphics"},
 		":",
 	], right: {
@@ -98,8 +99,12 @@ var element = {tag: "main", contents:[
 
 var charWidth = require('./unicode.js').charWidth;
 
-console.log(".".repeat(25));
-console.log(wrap(processElement(element, styles, []), 25).join('\n'));
+add(19)//:(
+function add(n){
+	console.log(".".repeat(n));
+	console.log(wrap(processElement(element, styles, []), n).join('\n'));
+	setTimeout(()=>{add(n-1)},1000);
+}
 
 function wrap(iter, width, noCombining) {
 	var blockStyle = {}; //line bg color, margin
@@ -107,13 +112,21 @@ function wrap(iter, width, noCombining) {
 	// maybe have the iterator start a block immediately?
 	var margin = ""
 	var currStyle = {};
+	var right = ""; //todo: style this
+	
 	function* next() {
-		for (var [str, style] of iter) {
+		for (var [str, style, elem] of iter) {
 			if (str === true) {
 				blockStyle = style;
+				right = elem.right;
+				if (right) {
+					right=right.contents
+				} else {
+					right = ""
+				}
+				
 				margin = Array(blockStyle.margin || 0).fill(" ");
-				yield ['\n', {}]; // yeah what is that style hhhh
-				// todo: just yielding \n is not ideal here, and will break if the block starts at the beginning of the message
+				yield [true, {}]; // yeah what is that style hhhh
 			} else {
 				for (var chr of str) {
 					yield [chr, style];
@@ -123,48 +136,58 @@ function wrap(iter, width, noCombining) {
 	}
 	// text wrapper written by 12Me21 from ~12/28/2019
 	var lineBuffer = [];
-	var lineWidth = 0; //init?
+	var lineWidth = 0;
 	var breakSpot = -1;
-	var breakWidth = 0; //init?
+	var breakWidth = 0;
 	var lines = [];
+	var blockFirst = true; //is first line of block
+
+	function endLine() {
+		
+	}
 	
 	for (var [chr, style] of next()) {
 		var preWidth = lineWidth;
-		if (chr == '') {
-			pushLine(lineBuffer);
-			lineBuffer = margin.concat();
-			breakSpot = -1;
-			lineWidth = lineWidth - breakWidth;
-			breakWidth = 0;
-		} else if (chr == '\n') {
+		if (chr == '\n') {
 			breakSpot = lineBuffer.length + 1;
 			breakWidth = lineWidth;
-			
+		} else if (chr === true) { //block start
+			if (lineBuffer.length) { //end prev block
+				pushLine(lineBuffer);
+				breakSpot = -1;
+				breakWidth = 0;
+				lineWidth = 0;
+				blockFirst = true;
+				lineBuffer = margin.concat(); //todo: this should be handled elsewhere !!!!!
+			}
 		} else {
 			lineWidth += charWidth(chr);
-			lineBuffer.push(makeStyle(style) + chr);
+			lineBuffer.push(chr);
 		}
 		
 		if (chr == ' ') {
 			breakSpot = lineBuffer.length;
 			breakWidth = lineWidth;
 		}
-		if (chr == '\n' || lineWidth > width - margin.length) {
+		if (chr == '\n' || lineWidth > width - margin.length - right.length) {
 			
 			if (breakSpot < 0) {
 				breakSpot = lineBuffer.length - 1;
 				breakWidth = preWidth;
 			}
+			if (right)
+				right = " ".repeat((width - breakWidth - right.length)) + right
 			// if chr was \n, breakspot will be the end of the linebuffer
-			pushLine(lineBuffer.slice(0, breakSpot).concat(makeStyle(blockStyle)+"\x1B[K"));
+			pushLine(lineBuffer.slice(0, breakSpot).concat(right));
 			lineBuffer = margin.concat(lineBuffer.slice(breakSpot));
 			breakSpot = -1;
 			lineWidth = lineWidth - breakWidth;
 			breakWidth = 0;
+			right = ""
 		}
 	}
 	if (lineBuffer.length) {
-		pushLine(lineBuffer.concat(makeStyle(blockStyle)+"\x1B[K"));
+		pushLine(lineBuffer.concat(right));
 	}
 	
 	function pushLine(line) {
@@ -183,3 +206,9 @@ function makeStyle(style) {
 		s += `\x1B[48;2;${style.bgcolor>>16 & 255};${style.bgcolor>>8 & 255};${style.bgcolor & 255}m`;
 	return s;
 }
+
+
+//idea: handle the "right" property by
+// reducing the width of the first row
+// by the length of the right string
+// 
